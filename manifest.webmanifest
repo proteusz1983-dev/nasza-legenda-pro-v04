@@ -1,7 +1,7 @@
 {
   "name":"Nasza Legenda PRO",
   "short_name":"Legenda PRO",
-  "description":"Interaktywny odcinek rodzinny działający offline.",
+  "description":"Interaktywny odcinek dla rodzin i małych grup, działający offline.",
   "start_url":"./",
   "scope":"./",
   "display":"standalone",

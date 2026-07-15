@@ -1,7 +1,7 @@
 'use strict';
 
-const STORAGE_KEY = 'nasza_legenda_pro_v04';
-const VERSION = '0.4';
+const STORAGE_KEY = 'nasza_legenda_pro_v041';
+const VERSION = '0.4.1';
 const app = document.getElementById('app');
 const soundBtn = document.getElementById('soundBtn');
 const installBtn = document.getElementById('installBtn');
@@ -21,11 +21,13 @@ const defaultState = () => ({
   version: VERSION,
   screen: 'home',
   scene: 'safety',
-  team: 'Jabłońscy',
-  p1: {name:'Iwona', interest:'podróże i rodzinne wyjazdy'},
-  p2: {name:'Szymon', interest:'gry na telefon'},
-  dream: 'wspólna rodzinna wycieczka',
+  team: 'Drużyna Testowa',
+  p1: {name:'Osoba 1', interest:'podróże'},
+  p2: {name:'Osoba 2', interest:'gry'},
+  dream: 'wspólny plan',
   forbidden: '',
+  testMeta: {groupType:'rodzina z dzieckiem', p1age:'', p2age:'', testLabel:''},
+  diagnostics: {narrationStarts:0, narrationReplays:0, narrationErrors:[], contextHelpUses:0},
   sound: true,
   voiceName: '',
   startedAt: null,
@@ -48,6 +50,9 @@ let recapAnimation = null;
 let portalInterval = null;
 let portalPointers = new Set();
 let portalProgress = 0;
+let speechRunId = 0;
+let speechKeepAlive = null;
+let speechWatchdog = null;
 
 function loadState(){
   try {
@@ -74,7 +79,49 @@ function sceneShell(content, label=''){
   return `
     <div class="progress-meta"><span>Godzina, której brakowało</span><span>${label || `${idx+1}/${SCENE_ORDER.length}`}</span></div>
     <div class="progress"><div style="width:${pct}%"></div></div>
+    ${contextPanel(state.scene)}
+    <div class="narration-bar">
+      <button id="replayNarration" class="narration-btn" type="button">🔊 Odtwórz narrację tej sceny</button>
+      <span id="narrationStatus" class="micro">Narrator gotowy</span>
+    </div>
     ${content}`;
+}
+
+function sceneContext(scene){
+  const a = state.answers.anchor?.item || 'wybrana Kotwica';
+  const contexts = {
+    safety:{past:'Zaczynacie nowy odcinek.',why:'Historia korzysta z prawdziwych przedmiotów, więc najpierw ustala bezpieczne zasady.',now:'Przeczytajcie zasady i potwierdźcie gotowość.'},
+    intro:{past:'Kronika wykryła brak jednej godziny w jutrzejszym dniu.',why:'Jeżeli godzina pozostanie pusta, zamieni się w niewykorzystane wspomnienie.',now:'Wypowiedzcie zdanie drużyny i rozpocznijcie poszukiwanie.'},
+    roles:{past:'Tylko dwie osoby mogą odczytać ostatni sygnał Kroniki.',why:'Każda osoba otrzymuje inną funkcję, bo późniejsze próby wymagają współpracy.',now:'Zapamiętajcie role i przyjmijcie je.'},
+    hunt:{past:'Role zostały przydzielone.',why:'Brakująca godzina zostawiła dwa ślady w zwykłych przedmiotach znajdujących się obok Was.',now:'Znajdźcie po jednym bezpiecznym przedmiocie zgodnie z opisem.'},
+    objects:{past:'Odnaleźliście dwa materialne ślady.',why:'Jeden z nich potrafi utrzymać połączenie z brakującą godziną i stanie się Kotwicą Czasu.',now:'Wpiszcie nazwy obu przedmiotów, aby Kronika mogła je porównać.'},
+    anchor:{past:'Kronika porównała oba przedmioty i wybrała Kotwicę.',why:`${a} będzie łączyć prawdziwy pokój z kolejnymi scenami historii.`,now:'Połóżcie Kotwicę blisko telefonu i przeczytajcie, jaki sygnał odebrała.'},
+    privateIwona:{past:`Kotwica ${a} odebrała wiadomość, ale brakuje w niej pierwszego słowa.`,why:'Słowo musi zostać wybrane samodzielnie, aby Cień nie mógł przewidzieć całej wiadomości.',now:`Druga osoba odwraca wzrok, a ${state.p1.name} wybiera jedno słowo.`},
+    privateSzymon:{past:'Pierwsze słowo zostało ukryte w Kronice.',why:'Druga część sygnału musi powstać niezależnie od pierwszej.',now:`${state.p1.name} odwraca wzrok, a ${state.p2.name} wybiera swoje słowo.`},
+    signalReveal:{past:'Dwa niezależne słowa zostały zapisane.',why:'Połączone tworzą wiadomość wysłaną przez Waszą przyszłą wersję.',now:'Przeczytajcie zdanie i poprawcie je tylko wtedy, gdy nie brzmi jak Wasze.'},
+    memoryIntro:{past:'Wiadomość przyszłości została wysłana przez Kotwicę.',why:'Cień próbuje usunąć kod prowadzący do brakującej godziny.',now:'Za chwilę zapamiętajcie sześć symboli w poprawnej kolejności.'},
+    memoryShow:{past:'Kod pojawił się na ekranie tylko na chwilę.',why:'Każdy zapamiętany znak osłabi Cień w następnej scenie.',now:'Patrzcie razem i zapamiętajcie kolejność symboli.'},
+    memoryAnswer:{past:'Cień ukrył kod, który przed chwilą widzieliście.',why:'Liczba poprawnych pozycji zmieni siłę Cienia i końcowy artefakt.',now:'Odtwórzcie dokładnie sześć symboli w tej samej kolejności.'},
+    shadow:{past:'Próba pamięci ustaliła, ile fragmentów kodu udało się zachować.',why:'Cień żywi się planami, które nigdy nie otrzymały konkretnego terminu.',now:'Wysłuchajcie go, a potem zdecydujcie, na co naprawdę przeznaczycie odzyskaną godzinę.'},
+    hourChoice:{past:'Cień ujawnił, że brakująca godzina była pustym planem.',why:'Godzinę można odzyskać tylko przez nadanie jej konkretnego działania i terminu.',now:'Wybierzcie rodzaj godziny i wpiszcie, co oraz kiedy zrobicie.'},
+    portal:{past:'Wasza odzyskana godzina ma już cel i konkretny plan.',why:'Kronika musi sprawdzić, czy decyzję naprawdę podjęły obie osoby, a nie tylko jedna.',now:`Połóżcie ${a} między sobą i otwórzcie portal dwoma dotknięciami.`},
+    twist:{past:'Portal potwierdził wspólną decyzję i ponownie uruchomił Kotwicę.',why:'Dopiero teraz można zobaczyć prawdziwe źródło Cienia i znaczenie wcześniejszej wiadomości.',now:'Przeczytajcie zwrot akcji i przygotujcie się na finałowy wybór.'},
+    finalChoice:{past:'Dowiedzieliście się, że Cień jest przyszłością, w której plan nie został wykonany.',why:'Ostatnia decyzja ustala, czy ta historia pozostanie tylko między Wami, czy otworzy drogę kolejnym osobom.',now:'Wybierzcie jedną z dwóch wersji przyszłości.'},
+    artifact:{past:'Finałowa decyzja została zapisana w Kronice.',why:'Artefakt podsumowuje Wasze wyniki, błędy i sposób otwarcia portalu.',now:'Odbierzcie artefakt i poznajcie nową nazwę Kotwicy.'},
+    complete:{past:'Odzyskaliście brakującą godzinę i zamknęliście pierwszy odcinek.',why:'Podsumowanie pokazuje, że historia naprawdę korzystała z Waszych decyzji.',now:'Obejrzyjcie zwiastun, a następnie oceńcie test osobno i szczerze.'}
+  };
+  return contexts[scene] || {past:'Historia trwa.',why:'Ta scena wynika z poprzedniej decyzji.',now:'Wykonajcie polecenie widoczne poniżej.'};
+}
+function contextPanel(scene){
+  const c = sceneContext(scene);
+  return `<details class="context-bridge" open>
+    <summary>Co się dzieje i dlaczego?</summary>
+    <div class="context-grid">
+      <div><strong>Co się wydarzyło</strong><span>${esc(c.past)}</span></div>
+      <div><strong>Dlaczego to ważne</strong><span>${esc(c.why)}</span></div>
+      <div><strong>Co robicie teraz</strong><span>${esc(c.now)}</span></div>
+    </div>
+  </details>`;
 }
 function clearRuntime(){
   if(activeTimer){ activeTimer.stop?.(); clearInterval(activeTimer.interval); clearTimeout(activeTimer.countdownTimeout); activeTimer = null; }
@@ -82,7 +129,7 @@ function clearRuntime(){
   if(recapAnimation){ cancelAnimationFrame(recapAnimation); recapAnimation = null; }
   if(portalInterval){ clearInterval(portalInterval); portalInterval = null; }
   portalPointers.clear(); portalProgress = 0;
-  if('speechSynthesis' in window) speechSynthesis.cancel();
+  stopNarration();
 }
 
 function ensureAudio(){
@@ -132,18 +179,93 @@ if('speechSynthesis' in window){
   pickVoice();
   speechSynthesis.onvoiceschanged = () => { pickVoice(); if(state.screen==='setup') render(); };
 }
-function speak(text, onEnd){
-  if(!state.sound || !('speechSynthesis' in window)){ onEnd?.(); return; }
+function stopNarration(){
+  speechRunId++;
+  if(speechKeepAlive){ clearInterval(speechKeepAlive); speechKeepAlive=null; }
+  if(speechWatchdog){ clearTimeout(speechWatchdog); speechWatchdog=null; }
+  if('speechSynthesis' in window) speechSynthesis.cancel();
+}
+function speechChunks(text,maxLength=175){
+  const clean=String(text||'').replace(/\s+/g,' ').trim();
+  if(!clean) return [];
+  const sentences=clean.match(/[^.!?]+[.!?]+|[^.!?]+$/g)||[clean];
+  const chunks=[];
+  for(const sentenceRaw of sentences){
+    let sentence=sentenceRaw.trim();
+    while(sentence.length>maxLength){
+      let cut=sentence.lastIndexOf(' ',maxLength);
+      if(cut<70) cut=maxLength;
+      chunks.push(sentence.slice(0,cut).trim());
+      sentence=sentence.slice(cut).trim();
+    }
+    if(sentence) chunks.push(sentence);
+  }
+  return chunks;
+}
+function setNarrationStatus(text,kind=''){
+  const el=document.getElementById('narrationStatus');
+  if(!el) return;
+  el.textContent=text;
+  el.classList.toggle('error',kind==='error');
+  el.classList.toggle('ok',kind==='ok');
+}
+function speak(text,onEnd,options={}){
+  if(!state.sound || !('speechSynthesis' in window)){ setNarrationStatus('Narrator wyciszony'); onEnd?.(); return; }
+  const chunks=speechChunks(text);
+  if(!chunks.length){ setNarrationStatus('Ta scena nie ma narracji','error'); onEnd?.(); return; }
+  stopNarration();
   pickVoice();
-  speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(String(text).replace(/\s+/g,' ').trim());
-  utterance.lang = 'pl-PL'; utterance.rate = .88; utterance.pitch = .94; utterance.volume = 1;
-  if(narratorVoice) utterance.voice = narratorVoice;
-  let ended = false;
-  const finish = () => { if(ended) return; ended = true; onEnd?.(); };
-  utterance.onend = finish; utterance.onerror = finish;
-  speechSynthesis.speak(utterance);
-  setTimeout(finish, Math.max(4000, String(text).length * 95));
+  const runId=speechRunId;
+  state.diagnostics=state.diagnostics||{narrationStarts:0,narrationReplays:0,narrationErrors:[],contextHelpUses:0};
+  state.diagnostics.narrationStarts=(state.diagnostics.narrationStarts||0)+1;
+  if(options.replay) state.diagnostics.narrationReplays=(state.diagnostics.narrationReplays||0)+1;
+  saveState();
+  let index=0,finished=false;
+  setNarrationStatus(options.replay?'Powtarzam narrację…':'Narrator mówi…');
+  speechKeepAlive=setInterval(()=>{
+    if(runId!==speechRunId) return;
+    try{ if(speechSynthesis.paused) speechSynthesis.resume(); }catch{}
+  },2500);
+  const finish=()=>{
+    if(finished||runId!==speechRunId)return;
+    finished=true;
+    if(speechKeepAlive){clearInterval(speechKeepAlive);speechKeepAlive=null;}
+    if(speechWatchdog){clearTimeout(speechWatchdog);speechWatchdog=null;}
+    setNarrationStatus('Narracja zakończona','ok');
+    onEnd?.();
+  };
+  const next=()=>{
+    if(finished||runId!==speechRunId)return;
+    if(index>=chunks.length){finish();return;}
+    const chunk=chunks[index++];
+    const utterance=new SpeechSynthesisUtterance(chunk);
+    utterance.lang='pl-PL';utterance.rate=.88;utterance.pitch=.94;utterance.volume=1;
+    if(narratorVoice) utterance.voice=narratorVoice;
+    let settled=false;
+    const advance=()=>{if(settled||runId!==speechRunId)return;settled=true;if(speechWatchdog){clearTimeout(speechWatchdog);speechWatchdog=null;}setTimeout(next,70);};
+    utterance.onend=advance;
+    utterance.onerror=e=>{
+      if(settled||runId!==speechRunId)return;
+      state.diagnostics.narrationErrors=state.diagnostics.narrationErrors||[];
+      state.diagnostics.narrationErrors.push({scene:state.scene,error:e.error||'speech-error',at:new Date().toISOString()});
+      state.diagnostics.narrationErrors=state.diagnostics.narrationErrors.slice(-20);
+      saveState();
+      setNarrationStatus('Głos został przerwany — przechodzę dalej','error');
+      advance();
+    };
+    try{speechSynthesis.speak(utterance);}catch(err){utterance.onerror?.({error:err.message||'speak-exception'});return;}
+    speechWatchdog=setTimeout(()=>{
+      if(settled||runId!==speechRunId)return;
+      state.diagnostics.narrationErrors=state.diagnostics.narrationErrors||[];
+      state.diagnostics.narrationErrors.push({scene:state.scene,error:'watchdog-timeout',at:new Date().toISOString()});
+      state.diagnostics.narrationErrors=state.diagnostics.narrationErrors.slice(-20);
+      saveState();
+      try{speechSynthesis.cancel();}catch{}
+      setNarrationStatus('Głos zawiesił się — uruchomiono następny fragment','error');
+      advance();
+    },Math.max(5000,chunk.length*105));
+  };
+  next();
 }
 function voiceOptions(){
   const voices = getVoices().filter(v=>/^pl/i.test(v.lang));
@@ -191,9 +313,9 @@ function renderHome(){
   app.innerHTML = `
     <section class="card hero">
       <img src="./logo.svg" class="hero-logo" alt="">
-      <span class="badge">ODCINEK TESTOWY PRO</span>
+      <span class="badge">ODCINEK TESTOWY · PILOTAŻ</span>
       <h1>Jutro będzie miało tylko 23 godziny.</h1>
-      <p>Iwona i Szymon mają odnaleźć brakującą godzinę, zanim Cień Niedokończonych Planów zamieni ją w pusty fragment rodzinnej historii.</p>
+      <p>Wasza drużyna ma odnaleźć brakującą godzinę, zanim Cień Niedokończonych Planów zamieni ją w pusty fragment wspólnej historii.</p>
       <div class="note"><strong>To nie jest formularz z zagadkami.</strong> Przedmioty, słowa, wynik czasu i decyzje wrócą później w fabule.</div>
       <div class="actions">
         <button id="mainStart" class="primary" type="button">${hasProgress?'Kontynuuj odcinek':'Przygotuj test'}</button>
@@ -201,7 +323,7 @@ function renderHome(){
       </div>
     </section>
     <section class="card">
-      <span class="badge">35–45 MINUT · 2 OSOBY · OFFLINE</span>
+      <span class="badge">12–20 MINUT · 2 OSOBY · OFFLINE</span>
       <h2 style="margin-top:14px">Godzina, której brakowało</h2>
       <div class="scene-list">
         <div><strong>Historia reaguje</strong><br><span class="muted">Kotwica i własne słowa wracają w finale.</span></div>
@@ -227,10 +349,18 @@ function renderSetup(){
         <div><label>Nazwa drużyny</label><input id="team" value="${esc(state.team)}"></div>
         <div><label>Wspólne marzenie lub plan</label><input id="dream" value="${esc(state.dream)}"></div>
         <div><label>Osoba 1</label><input id="p1name" value="${esc(state.p1.name)}"></div>
-        <div><label>Zainteresowanie Iwony</label><input id="p1interest" value="${esc(state.p1.interest)}"></div>
+        <div><label>Zainteresowanie osoby 1</label><input id="p1interest" value="${esc(state.p1.interest)}"></div>
         <div><label>Osoba 2</label><input id="p2name" value="${esc(state.p2.name)}"></div>
-        <div><label>Zainteresowanie Szymona</label><input id="p2interest" value="${esc(state.p2.interest)}"></div>
+        <div><label>Zainteresowanie osoby 2</label><input id="p2interest" value="${esc(state.p2.interest)}"></div>
       </div>
+      <div class="grid three" style="margin-top:15px">
+        <div><label>Rodzaj grupy testowej</label><select id="groupType">
+          ${['rodzina z dzieckiem','rodzeństwo','para','przyjaciele','współpracownicy','inna grupa'].map(x=>`<option value="${x}" ${state.testMeta?.groupType===x?'selected':''}>${x}</option>`).join('')}
+        </select></div>
+        <div><label>Wiek osoby 1 (opcjonalnie)</label><input id="p1age" inputmode="numeric" value="${esc(state.testMeta?.p1age||'')}" placeholder="np. 38"></div>
+        <div><label>Wiek osoby 2 (opcjonalnie)</label><input id="p2age" inputmode="numeric" value="${esc(state.testMeta?.p2age||'')}" placeholder="np. 10"></div>
+      </div>
+      <div style="margin-top:15px"><label>Etykieta testu (opcjonalnie)</label><input id="testLabel" value="${esc(state.testMeta?.testLabel||'')}" placeholder="np. Rodzina K. — test 01"></div>
       <div style="margin-top:15px"><label>Tematy, których nie używać</label><input id="forbidden" value="${esc(state.forbidden)}" placeholder="opcjonalnie"></div>
       <div class="grid two" style="margin-top:15px">
         <div><label>Głos narratora dostępny na urządzeniu</label><select id="voiceSelect">${voiceOptions()}</select></div>
@@ -240,15 +370,17 @@ function renderSetup(){
       <div class="actions"><button id="startEpisode" class="primary" type="button">Uruchom tryb filmowy</button><button id="backHome" class="secondary" type="button">Wróć</button></div>
     </section>`;
   document.getElementById('voiceSelect').onchange=e=>{state.voiceName=e.target.value;saveState();pickVoice();};
-  document.getElementById('voicePreview').onclick=()=>{ensureAudio();state.voiceName=document.getElementById('voiceSelect').value;saveState();pickVoice();speak('Jutro będzie miało tylko dwadzieścia trzy godziny. Kronika czeka na decyzję Iwony i Szymona.');};
+  document.getElementById('voicePreview').onclick=()=>{ensureAudio();state.voiceName=document.getElementById('voiceSelect').value;saveState();pickVoice();speak(`Jutro będzie miało tylko dwadzieścia trzy godziny. Kronika czeka na decyzję ${document.getElementById('p1name').value||'osoby pierwszej'} i ${document.getElementById('p2name').value||'osoby drugiej'}.`,null,{replay:true});};
   document.getElementById('backHome').onclick=()=>{state.screen='home';saveState();render();};
   document.getElementById('startEpisode').onclick=async()=>{
-    state.team=document.getElementById('team').value.trim()||'Jabłońscy';
-    state.dream=document.getElementById('dream').value.trim()||'wspólna rodzinna przygoda';
-    state.p1={name:document.getElementById('p1name').value.trim()||'Iwona',interest:document.getElementById('p1interest').value.trim()||'podróże'};
-    state.p2={name:document.getElementById('p2name').value.trim()||'Szymon',interest:document.getElementById('p2interest').value.trim()||'gry'};
+    state.team=document.getElementById('team').value.trim()||'Drużyna Testowa';
+    state.dream=document.getElementById('dream').value.trim()||'wspólny plan';
+    state.p1={name:document.getElementById('p1name').value.trim()||'Osoba 1',interest:document.getElementById('p1interest').value.trim()||'podróże'};
+    state.p2={name:document.getElementById('p2name').value.trim()||'Osoba 2',interest:document.getElementById('p2interest').value.trim()||'gry'};
     state.forbidden=document.getElementById('forbidden').value.trim();
     state.voiceName=document.getElementById('voiceSelect').value;
+    state.testMeta={groupType:document.getElementById('groupType').value,p1age:document.getElementById('p1age').value.trim(),p2age:document.getElementById('p2age').value.trim(),testLabel:document.getElementById('testLabel').value.trim()};
+    state.diagnostics={narrationStarts:0,narrationReplays:0,narrationErrors:[],contextHelpUses:0};
     state.startedAt=new Date().toISOString(); state.completedAt=null; state.scene='safety'; state.answers={}; state.results={}; state.memorySequence=[]; state.memoryAnswer=[]; state.feedback={};
     saveState(); ensureAudio(); await gotoScene('safety','Kronika rozpoznaje drużynę…');
   };
@@ -257,10 +389,23 @@ function renderSetup(){
 const narrations = {
   safety:()=>`Ta historia wykorzystuje wyłącznie bezpieczne, zwykłe przedmioty. Nie używajcie noży, lekarstw, dokumentów, pieniędzy ani ciężkich rzeczy. Nie wspinajcie się. W każdej chwili możecie przerwać próbę. Historia zawsze poprowadzi was dalej.`,
   intro:()=>`Jutro będzie miało dwadzieścia trzy godziny. Dokładnie o północy z kalendarza drużyny ${state.team} zniknęła jedna godzina. Nie została przesunięta ani skreślona. Po prostu nigdy się nie wydarzy. Kronika wysłała ostatni sygnał do ${state.p1.name} i ${state.p2.name}. Macie odnaleźć czas, którego jeszcze nie zdążyliście stracić.`,
-  roles:()=>`${state.p1.name} zostaje Kartografką Wspomnień. ${state.p2.name} zostaje Operatorem Sygnału. Jedna osoba odnajdzie znaczenie. Druga uruchomi ukryty mechanizm.`,
+  roles:()=>`${state.p1.name} zostaje Kartografem Wspomnień. ${state.p2.name} zostaje Operatorem Sygnału. Jedna osoba odnajdzie znaczenie. Druga uruchomi ukryty mechanizm.`,
   hunt:()=>`Pierwszy ślad ukrył się w dwóch zwykłych przedmiotach. ${state.p1.name}, znajdź coś związanego z podróżą, miejscem albo wspomnieniem. ${state.p2.name}, znajdź urządzenie z ekranem, kontrolką lub przyciskami, które potrafi przekazać sygnał. Macie dziewięćdziesiąt sekund.`,
+  objects:()=>`Znaleźliście dwa ślady, ale tylko jeden potrafi utrzymać połączenie z brakującą godziną. Wpiszcie nazwy obu przedmiotów. Kronika porówna ich znaczenie i wybierze Kotwicę Czasu.`,
+  anchor:()=>{const a=state.answers.anchor||chooseAnchor();return `Kronika wybrała przedmiot ${a.item}. ${anchorInterpretation(a)} Połóżcie go blisko telefonu. Będzie wracać w kolejnych scenach i w finale.`;},
+  privateIwona:()=>`Kotwica odebrała niepełną wiadomość. ${state.p1.name} wybierze teraz pierwsze słowo bez konsultacji. Druga osoba odwraca wzrok, ponieważ dwa niezależne wybory są trudniejsze do przewidzenia przez Cień.`,
+  privateSzymon:()=>`Pierwsze słowo zostało ukryte. Teraz ${state.p2.name} wybierze drugie słowo bez poznania wcześniejszej decyzji.`,
+  signalReveal:()=>`Dwa słowa połączyły się w wiadomość wysłaną przez waszą przyszłą wersję. Przeczytajcie zdanie. Możecie je poprawić, ale tylko wtedy, gdy nie brzmi jak wasze.`,
+  memoryIntro:()=>`Wiadomość przyciągnęła Cień Niedokończonych Planów. Próbuje usunąć sześcioczęściowy kod prowadzący do brakującej godziny. Za chwilę zobaczycie symbole tylko przez dziesięć sekund.`,
+  memoryShow:()=>`Kod jest aktywny. Zapamiętajcie sześć symboli w dokładnej kolejności. Każdy zachowany znak osłabi Cień.`,
+  memoryAnswer:()=>`Kod zniknął. Wybierzcie sześć symboli w tej samej kolejności. Wynik zmieni kolejną scenę i końcowy artefakt.`,
   shadow:()=>`Światło Kroniki przygasa. Z porwanej strony wychodzi Cień Niedokończonych Planów. Mówi: myślicie, że ukradłem waszą godzinę? Nie musiałem. Pozostawiliście ją pustą. Jeśli naprawdę chcecie ją odzyskać, pokażcie mi, na co ją przeznaczycie.`,
-  hourChoice:()=>`Macie sto dwadzieścia sekund, aby wybrać jedną prawdziwą godzinę. Nie ogólną obietnicę. Potrzebny jest konkretny plan i termin. Gdy narrator skończy, czas uruchomi się automatycznie.`
+  hourChoice:()=>`Cień ujawnił prawdę. Godzina zniknęła, ponieważ żaden plan nie otrzymał konkretnego terminu. Macie sto dwadzieścia sekund, aby wybrać jedną prawdziwą godzinę. Wpiszcie dokładnie co i kiedy zrobicie. Gdy narrator skończy, czas uruchomi się automatycznie.`,
+  portal:()=>{const a=state.answers.anchor?.item||'Kotwicę';return `Wasz plan istnieje, ale Kronika musi potwierdzić zgodę obu osób. Połóżcie ${a} między sobą. Na telefonie przyłóżcie dwa palce jednocześnie do portalu i utrzymajcie je przez trzy sekundy.`;},
+  twist:()=>`Portal otworzył prawdziwe wspomnienie. Cień nie jest złodziejem. Jest wersją przyszłości, w której nigdy nie wykonaliście wybranego planu. Wiadomość, Kotwica i odzyskana godzina od początku prowadziły do tej chwili.`,
+  finalChoice:()=>`Pozostała ostatnia decyzja. Możecie zamknąć odzyskaną godzinę tylko dla siebie albo pozostawić Kronikę otwartą, aby w następnym odcinku dołączyły kolejne osoby. Każda opcja zmieni zakończenie.`,
+  artifact:()=>{const art=state.answers.artifact||computeArtifact();return `Kronika przetworzyła wasze decyzje i stworzyła artefakt: ${art.name}. Kotwica otrzymała również nową legendarną nazwę. Odcinek został zapisany.`;},
+  complete:()=>`Odzyskaliście brakującą godzinę. Podsumowanie zawiera wasz przedmiot, wiadomość, wynik pamięci, konkretny plan i finałową decyzję. Obejrzyjcie zwiastun, a następnie oceńcie test szczerze i osobno.`
 };
 
 function renderEpisode(){
@@ -273,7 +418,7 @@ function renderEpisode(){
 const sceneRenderers = {
   safety:()=>`<section class="card scene"><span class="badge">ZASADA ZERO</span><h2>Bezpieczna Legenda</h2><div class="note warning">Nie używajcie ostrych narzędzi, leków, dokumentów, pieniędzy ani rzeczy znajdujących się wysoko. Nie przesuwajcie ciężkich mebli.</div><p>Telefon jest tylko portalem. Najważniejsze wydarzenia mają rozegrać się między Wami.</p><div class="actions"><button id="next" class="primary">Rozumiemy — otwórz Kronikę</button></div></section>`,
   intro:()=>`<section class="card scene"><span class="badge">PROLOG</span><h2>Jutro będzie miało 23 godziny</h2><div class="story">Dokładnie o północy z kalendarza drużyny <strong>${esc(state.team)}</strong> zniknęła jedna godzina.<br><br>Nie została przesunięta. Nie została skreślona. Po prostu nigdy się nie wydarzy.</div><blockquote>„Nie oddamy czasu, którego jeszcze nie przeżyliśmy.”</blockquote><div class="actions"><button id="next" class="primary">Wypowiedzcie zdanie i rozpocznijcie</button></div></section>`,
-  roles:()=>`<section class="card scene"><span class="badge">ROLE</span><h2>Kronika wybrała dwie osoby</h2><div class="role-grid"><div class="role-card"><strong>${esc(state.p1.name)} · Kartografka Wspomnień</strong><span>Rozpoznaje miejsca, wspomnienia i znaczenie przedmiotów.</span></div><div class="role-card"><strong>${esc(state.p2.name)} · Operator Sygnału</strong><span>Uruchamia urządzenia, odczytuje wzory i zakłócenia.</span></div></div><div class="note">Wasze zainteresowania również mają znaczenie: <strong>${esc(state.p1.interest)}</strong> i <strong>${esc(state.p2.interest)}</strong>.</div><div class="actions"><button id="next" class="primary">Przyjmujemy role</button></div></section>`,
+  roles:()=>`<section class="card scene"><span class="badge">ROLE</span><h2>Kronika wybrała dwie osoby</h2><div class="role-grid"><div class="role-card"><strong>${esc(state.p1.name)} · Kartograf Wspomnień</strong><span>Rozpoznaje miejsca, wspomnienia i znaczenie przedmiotów.</span></div><div class="role-card"><strong>${esc(state.p2.name)} · Operator Sygnału</strong><span>Uruchamia urządzenia, odczytuje wzory i zakłócenia.</span></div></div><div class="note">Wasze zainteresowania również mają znaczenie: <strong>${esc(state.p1.interest)}</strong> i <strong>${esc(state.p2.interest)}</strong>.</div><div class="actions"><button id="next" class="primary">Przyjmujemy role</button></div></section>`,
   hunt:()=>`<section class="card scene"><span class="badge">PRÓBA 1 · DWA PRZEDMIOTY</span><h2>Pierwszy ślad</h2><div class="role-grid"><div class="role-card"><strong>${esc(state.p1.name)}</strong><span>Znajdź bezpieczny przedmiot związany z podróżą, miejscem albo wspomnieniem.</span></div><div class="role-card"><strong>${esc(state.p2.name)}</strong><span>Znajdź urządzenie z ekranem, kontrolką lub przyciskami, które przekazuje sygnał.</span></div></div>${timerMarkup(90,'huntTimer')}<div class="actions"><button id="huntDone" class="primary">Znaleźliśmy oba</button><button id="huntRescue" class="secondary">Mamy tylko jeden</button></div></section>`,
   objects:()=>`<section class="card scene"><span class="badge">ZAPIS ŚLADÓW</span><h2>Co znaleźliście?</h2><p>Kronika sama wybierze Kotwicę. Nie wiecie jeszcze, dlaczego właśnie ten przedmiot będzie ważniejszy.</p><div class="grid two"><div><label>Przedmiot ${esc(state.p1.name)}</label><input id="object1" value="${esc(state.answers.object1||'')}" placeholder="np. walizka, zdjęcie, klucz"></div><div><label>Przedmiot ${esc(state.p2.name)}</label><input id="object2" value="${esc(state.answers.object2||'')}" placeholder="np. telefon, pilot, głośnik"></div></div><div class="actions"><button id="analyzeObjects" class="primary">Pozwól Kronice wybrać</button></div></section>`,
   anchor:()=>anchorScene(),
@@ -412,7 +557,7 @@ function hourOptions(){
   return [
     {id:'game',title:'Godzina Gry',desc:`${state.p2.name} wybiera wspólną grę. Przez godzinę żadnych innych telefonów ani rozpraszaczy.`,example:'np. sobota, 18:00 — wspólna gra przez godzinę'},
     {id:'trip',title:'Godzina Wyprawy',desc:`${state.p1.name} wybiera spacer, mały wyjazd albo zaplanowanie ${state.dream}.`,example:'np. niedziela, 11:00 — planujemy lub wykonujemy wyprawę'},
-    {id:'surprise',title:'Godzina Niespodzianki',desc:'Przygotujecie coś dla Mateusza i Ewy, którzy nie uczestniczą w tym odcinku.',example:'np. w piątek przygotujemy dla nich niespodziankę'},
+    {id:'surprise',title:'Godzina Niespodzianki',desc:'Przygotujecie coś dla osoby lub osób, które nie uczestniczą w tym odcinku.',example:'np. w piątek przygotujemy wspólną niespodziankę'},
     {id:'own',title:'Własna Godzina',desc:'Wymyślacie inne konkretne działanie trwające mniej więcej godzinę.',example:'wpiszcie dokładnie co i kiedy zrobicie'}
   ];
 }
@@ -431,7 +576,7 @@ function twistScene(){
   return `<section class="card scene"><span class="badge">DRUGI ZWROT</span><h2>Cień nie jest złodziejem</h2><div class="story">Kotwica — <strong>${esc(a.item)}</strong> — reaguje po raz drugi. Kronika odtwarza zdanie:<blockquote>${esc(sentence)}</blockquote></div><p>${esc(portalLine)}</p><blockquote>„Nie jestem tym, kto zabrał godzinę” — mówi Cień. „Jestem wersją przyszłości, w której nigdy nie wykonaliście tego planu.”</blockquote><p>Odzyskana godzina ma już nazwę: <strong>${esc(hour)}</strong>. Teraz musicie zdecydować, czy ją zamknąć, czy otworzyć dla całej rodziny.</p><div class="actions"><button id="next" class="primary">Podejmujemy ostatnią decyzję</button></div></section>`;
 }
 function finalChoiceScene(){
-  return `<section class="card scene"><span class="badge">FINAŁOWA DECYZJA</span><h2>Co stanie się z odzyskaną godziną?</h2><button class="choice" data-final="sealed"><strong>A — Zamknąć godzinę</strong><small>Plan staje się bezpieczny i należy do Iwony oraz Szymona. Nie można go zmienić.</small></button><button class="choice" data-final="open"><strong>B — Pozostawić godzinę otwartą</strong><small>W Odcinku 2 Mateusz i Ewa będą mogli wejść do historii, ale Cień również otrzyma nową szansę.</small></button></section>`;
+  return `<section class="card scene"><span class="badge">FINAŁOWA DECYZJA</span><h2>Co stanie się z odzyskaną godziną?</h2><button class="choice" data-final="sealed"><strong>A — Zamknąć godzinę</strong><small>Plan staje się bezpieczny i należy tylko do ${esc(state.p1.name)} oraz ${esc(state.p2.name)}. Nie można go zmienić.</small></button><button class="choice" data-final="open"><strong>B — Pozostawić godzinę otwartą</strong><small>W Odcinku 2 kolejne osoby będą mogły wejść do historii, ale Cień również otrzyma nową szansę.</small></button></section>`;
 }
 
 function legendaryAnchorName(){
@@ -451,7 +596,7 @@ function computeArtifact(){
 }
 function artifactScene(){
   const artifact=computeArtifact(); state.answers.artifact=artifact; state.answers.legendaryAnchor=legendaryAnchorName(); saveState();
-  const ending=state.answers.finalChoice==='open'?'Kronika nie zamknęła się. Na jej stronach pojawiły się cztery miejsca: dla Iwony, Szymona, Mateusza i Ewy.':'Kronika zamknęła się z cichym uderzeniem. Odzyskana godzina wróciła do jutra i została zapisana pod konkretnym planem.';
+  const ending=state.answers.finalChoice==='open'?`Kronika nie zamknęła się. Obok imion ${state.p1.name} i ${state.p2.name} pojawiły się puste miejsca dla kolejnych uczestników.`:'Kronika zamknęła się z cichym uderzeniem. Odzyskana godzina wróciła do jutra i została zapisana pod konkretnym planem.';
   return `<section class="card scene"><span class="badge">ARTEFAKT ZDOBYTY</span><h2>${esc(ending)}</h2><div class="artifact"><div class="artifact-symbol">${artifact.symbol}</div><h3>${esc(artifact.name)}</h3><p>${esc(artifact.desc)}</p></div><div class="note"><strong>Kotwica otrzymała legendarną nazwę:</strong><br>${esc(state.answers.legendaryAnchor)}</div><blockquote>„Odzyskaliście jedną godzinę. Zobaczymy, ile kolejnych pozwolicie mi zabrać.”</blockquote><div class="actions"><button id="next" class="primary">Zapiszcie finał w Kronice</button></div></section>`;
 }
 function completeScene(){
@@ -467,6 +612,10 @@ function completeScene(){
 
 function wireScene(scene){
   const narration=narrations[scene]?.();
+  const replay=document.getElementById('replayNarration');
+  if(replay) replay.onclick=()=>{ensureAudio();stopNarration();speak(narrations[scene]?.()||'',null,{replay:true});};
+  const context=document.querySelector('.context-bridge');
+  if(context) context.addEventListener('toggle',()=>{if(context.open){state.diagnostics=state.diagnostics||{};state.diagnostics.contextHelpUses=(state.diagnostics.contextHelpUses||0)+1;saveState();}},{once:true});
   if(narration) setTimeout(()=>speak(narration,()=>{ if(scene==='hunt') wireHuntTimer(); if(scene==='hourChoice') startHourTimer(); }),180);
   else if(scene==='hunt') setTimeout(wireHuntTimer,500);
 
@@ -591,7 +740,7 @@ function recordRecap(canvas){
   }catch(err){console.error(err);alert('Nie udało się nagrać filmu. Zapisz plakat PNG albo użyj nagrywania ekranu.');}
 }
 function renderRecap(){
-  app.innerHTML=`<section class="card"><span class="badge">FILMOWE PODSUMOWANIE 9:16</span><h2 style="margin-top:14px">Zwiastun Iwony i Szymona</h2><p class="muted">Treść filmu powstała z ich przedmiotów, wyników i decyzji. To prototyp renderowany lokalnie, bez wysyłania danych.</p><div class="recap-wrap"><canvas id="recapCanvas" width="1080" height="1920"></canvas></div><div class="actions"><button id="playRecap" class="primary">▶ Odtwórz</button><button id="savePoster" class="secondary">Zapisz plakat PNG</button><button id="recordRecap" class="secondary">Nagraj WebM z dźwiękiem</button><button id="feedbackBtn" class="secondary">Oceń odcinek</button></div><div class="note">Docelowo system wygeneruje MP4 z naturalnym lektorem, muzyką i awatarami. Ta wersja sprawdza, czy treść podsumowania chce się pokazać innym.</div></section>`;
+  app.innerHTML=`<section class="card"><span class="badge">FILMOWE PODSUMOWANIE 9:16</span><h2 style="margin-top:14px">Zwiastun ${esc(state.p1.name)} i ${esc(state.p2.name)}</h2><p class="muted">Treść filmu powstała z ich przedmiotów, wyników i decyzji. To prototyp renderowany lokalnie, bez wysyłania danych.</p><div class="recap-wrap"><canvas id="recapCanvas" width="1080" height="1920"></canvas></div><div class="actions"><button id="playRecap" class="primary">▶ Odtwórz</button><button id="savePoster" class="secondary">Zapisz plakat PNG</button><button id="recordRecap" class="secondary">Nagraj WebM z dźwiękiem</button><button id="feedbackBtn" class="secondary">Oceń odcinek</button></div><div class="note">Docelowo system wygeneruje MP4 z naturalnym lektorem, muzyką i awatarami. Ta wersja sprawdza, czy treść podsumowania chce się pokazać innym.</div></section>`;
   const canvas=document.getElementById('recapCanvas');drawRecap(canvas,0);
   document.getElementById('playRecap').onclick=()=>playRecap(canvas);
   document.getElementById('savePoster').onclick=()=>{drawRecap(canvas,21.7);const a=document.createElement('a');a.download=`nasza-legenda-${safeFile(state.team)}.png`;a.href=canvas.toDataURL('image/png');a.click();};
@@ -601,17 +750,22 @@ function renderRecap(){
 
 function feedbackSlider(id,label){const value=state.feedback[id]||3;return `<div class="feedback-row"><label for="${id}">${label}</label><input id="${id}" type="range" min="1" max="5" value="${value}"><span id="${id}Value" class="feedback-score">${value}</span></div>`;}
 function renderFeedback(){
-  app.innerHTML=`<section class="card"><span class="badge">OCENA TESTU</span><h2 style="margin-top:14px">Bez grzecznościowych ocen</h2><p class="muted">Szukamy problemów, nie pochwał. Najważniejsze pytanie: czy chcecie kolejny odcinek?</p>${feedbackSlider('climate','Klimat historii')}${feedbackSlider('tasks','Ciekawość zadań')}${feedbackSlider('personal','Czy historia była o Was')}${feedbackSlider('surprise','Poziom zaskoczenia')}${feedbackSlider('recap','Czy podsumowanie chce się pokazać innym')}<div class="grid two"><div><label>Najlepszy moment</label><textarea id="best">${esc(state.feedback.best||'')}</textarea></div><div><label>Najsłabszy moment</label><textarea id="worst">${esc(state.feedback.worst||'')}</textarea></div></div><div style="margin-top:13px"><label>Co było niejasne albo wybiło z klimatu?</label><textarea id="unclear">${esc(state.feedback.unclear||'')}</textarea></div><div style="margin-top:13px"><label>Czy chcecie Odcinek 2?</label><select id="wantNext"><option value="">— wybierz —</option><option value="tak" ${state.feedback.wantNext==='tak'?'selected':''}>Tak, chcemy od razu</option><option value="może" ${state.feedback.wantNext==='może'?'selected':''}>Może po poprawkach</option><option value="nie" ${state.feedback.wantNext==='nie'?'selected':''}>Nie</option></select></div><div class="actions"><button id="saveFeedback" class="primary">Zapisz i pobierz wynik testu</button><button id="backRecap" class="secondary">Wróć do podsumowania</button></div></section>`;
-  ['climate','tasks','personal','surprise','recap'].forEach(id=>{const el=document.getElementById(id),out=document.getElementById(`${id}Value`);el.oninput=()=>out.textContent=el.value;});
+  app.innerHTML=`<section class="card"><span class="badge">OCENA TESTU</span><h2 style="margin-top:14px">Bez grzecznościowych ocen</h2><p class="muted">Szukamy problemów, nie pochwał. Najważniejsze pytanie: czy chcecie kolejny odcinek?</p>${feedbackSlider('climate','Klimat historii')}${feedbackSlider('tasks','Ciekawość zadań')}${feedbackSlider('personal','Czy historia była o Was')}${feedbackSlider('surprise','Poziom zaskoczenia')}${feedbackSlider('clarity','Czy rozumieliście kontekst każdej sceny')}${feedbackSlider('recap','Czy podsumowanie chce się pokazać innym')}<div class="grid two"><div><label>Najlepszy moment</label><textarea id="best">${esc(state.feedback.best||'')}</textarea></div><div><label>Najsłabszy moment</label><textarea id="worst">${esc(state.feedback.worst||'')}</textarea></div></div><div style="margin-top:13px"><label>W którym momencie straciliście kontekst i czego wtedy nie rozumieliście?</label><textarea id="unclear">${esc(state.feedback.unclear||'')}</textarea></div><div class="grid two" style="margin-top:13px">
+  <div><label>Czy ${esc(state.p1.name)} chce Odcinek 2?</label><select id="wantNextP1"><option value="">— wybierz —</option><option value="tak" ${state.feedback.wantNextP1==='tak'?'selected':''}>Tak</option><option value="może" ${state.feedback.wantNextP1==='może'?'selected':''}>Może</option><option value="nie" ${state.feedback.wantNextP1==='nie'?'selected':''}>Nie</option></select></div>
+  <div><label>Czy ${esc(state.p2.name)} chce Odcinek 2?</label><select id="wantNextP2"><option value="">— wybierz —</option><option value="tak" ${state.feedback.wantNextP2==='tak'?'selected':''}>Tak</option><option value="może" ${state.feedback.wantNextP2==='może'?'selected':''}>Może</option><option value="nie" ${state.feedback.wantNextP2==='nie'?'selected':''}>Nie</option></select></div>
+</div>
+<div style="margin-top:13px"><label>Wspólna decyzja po rozmowie</label><select id="wantNext"><option value="">— wybierz —</option><option value="tak" ${state.feedback.wantNext==='tak'?'selected':''}>Tak, chcemy od razu</option><option value="może" ${state.feedback.wantNext==='może'?'selected':''}>Może po poprawkach</option><option value="nie" ${state.feedback.wantNext==='nie'?'selected':''}>Nie</option></select></div><div class="actions"><button id="saveFeedback" class="primary">Zapisz i pobierz wynik testu</button><button id="backRecap" class="secondary">Wróć do podsumowania</button></div></section>`;
+  ['climate','tasks','personal','surprise','clarity','recap'].forEach(id=>{const el=document.getElementById(id),out=document.getElementById(`${id}Value`);el.oninput=()=>out.textContent=el.value;});
   document.getElementById('backRecap').onclick=()=>{state.screen='recap';saveState();render();};
   document.getElementById('saveFeedback').onclick=()=>{
-    ['climate','tasks','personal','surprise','recap'].forEach(id=>state.feedback[id]=Number(document.getElementById(id).value));state.feedback.best=document.getElementById('best').value.trim();state.feedback.worst=document.getElementById('worst').value.trim();state.feedback.unclear=document.getElementById('unclear').value.trim();state.feedback.wantNext=document.getElementById('wantNext').value;saveState();exportResults();
+    ['climate','tasks','personal','surprise','clarity','recap'].forEach(id=>state.feedback[id]=Number(document.getElementById(id).value));state.feedback.best=document.getElementById('best').value.trim();state.feedback.worst=document.getElementById('worst').value.trim();state.feedback.unclear=document.getElementById('unclear').value.trim();state.feedback.wantNextP1=document.getElementById('wantNextP1').value;state.feedback.wantNextP2=document.getElementById('wantNextP2').value;state.feedback.wantNext=document.getElementById('wantNext').value;saveState();exportResults();
   };
 }
 function exportResults(){
-  const payload={exportedAt:new Date().toISOString(),appVersion:VERSION,team:state.team,participants:[state.p1,state.p2],dream:state.dream,durationMinutes:state.startedAt&&state.completedAt?Math.round((new Date(state.completedAt)-new Date(state.startedAt))/60000):null,answers:state.answers,results:state.results,feedback:state.feedback};
-  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`wynik-testu-${safeFile(state.team)}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),5000);
+  const payload={exportedAt:new Date().toISOString(),appVersion:VERSION,testMeta:state.testMeta,team:state.team,participants:[{...state.p1,age:state.testMeta?.p1age||''},{...state.p2,age:state.testMeta?.p2age||''}],dream:state.dream,durationMinutes:state.startedAt&&state.completedAt?Math.round((new Date(state.completedAt)-new Date(state.startedAt))/60000):null,answers:state.answers,results:state.results,feedback:state.feedback,diagnostics:state.diagnostics};
+  const stamp=new Date().toISOString().replace(/[:.]/g,'-');
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`wynik-testu-${safeFile(state.team)}-${stamp}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),5000);
 }
 
-if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.warn));
+if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(reg=>reg.update()).catch(console.warn));
 render();

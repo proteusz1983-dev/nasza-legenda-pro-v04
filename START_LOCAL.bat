@@ -1,7 +1,7 @@
 @echo off
 cd /d "%~dp0"
 echo ==========================================
-echo NASZA LEGENDA PRO v0.4
+echo NASZA LEGENDA PRO v0.4.1
 echo Lokalny adres: http://localhost:8004
 echo Zamkniecie serwera: CTRL+C
 echo ==========================================

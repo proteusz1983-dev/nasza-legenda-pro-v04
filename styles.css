@@ -23,3 +23,20 @@ h1,h2,h3{margin-top:0}h2{font-size:clamp(1.65rem,5vw,2.25rem);margin-bottom:12px
 .curtain{position:fixed;inset:0;z-index:1000;background:radial-gradient(circle at 50% 42%,#17213b,#050710 60%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;color:var(--text);font-weight:850;letter-spacing:.03em;text-align:center;padding:24px}.curtain-logo{width:120px;height:120px;animation:float 2s ease-in-out infinite}@keyframes float{50%{transform:translateY(-8px)}}.scan-line{width:min(330px,75vw);height:4px;border-radius:999px;background:linear-gradient(90deg,transparent,var(--cyan),var(--gold),transparent);animation:scan 1.2s ease-in-out infinite}@keyframes scan{50%{transform:scaleX(.55);opacity:.65}}
 footer{border-top:1px solid var(--line);padding:16px 0 28px;color:var(--muted);font-size:.82rem}
 @media(max-width:640px){.grid.two,.role-grid,.option-grid{grid-template-columns:1fr}.card{padding:18px;border-radius:20px}.hero{padding:23px 18px}.topbar{padding-top:12px}.brand strong{font-size:.68rem}.feedback-row{grid-template-columns:1fr}.feedback-row input{width:100%}}
+
+
+/* v0.4.1 — kontekst scen i stabilniejszy narrator */
+.context-bridge{margin:0 0 12px;border:1px solid rgba(120,220,255,.22);border-radius:16px;background:rgba(120,220,255,.055);overflow:hidden}
+.context-bridge summary{cursor:pointer;padding:12px 14px;color:var(--cyan);font-weight:900;list-style:none}
+.context-bridge summary::-webkit-details-marker{display:none}
+.context-bridge summary::after{content:"▾";float:right;color:var(--gold)}
+.context-bridge[open] summary::after{content:"▴"}
+.context-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:rgba(255,255,255,.08);border-top:1px solid rgba(255,255,255,.08)}
+.context-grid>div{padding:12px;background:#11182b}
+.context-grid strong{display:block;color:var(--gold);font-size:.78rem;letter-spacing:.035em;text-transform:uppercase;margin-bottom:5px}
+.context-grid span{display:block;color:#e6edf8;font-size:.9rem;line-height:1.45}
+.narration-bar{display:flex;align-items:center;gap:10px;justify-content:space-between;margin:0 0 13px;padding:9px 11px;border:1px solid var(--line);border-radius:13px;background:rgba(255,255,255,.025)}
+.narration-btn{border:0;background:transparent;color:var(--text);font-weight:850;padding:5px;text-align:left}
+#narrationStatus.ok{color:var(--ok)}#narrationStatus.error{color:var(--danger)}
+.grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:700px){.context-grid,.grid.three{grid-template-columns:1fr}.narration-bar{align-items:flex-start;flex-direction:column;gap:4px}}

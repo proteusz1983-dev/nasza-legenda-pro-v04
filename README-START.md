@@ -1,37 +1,36 @@
-# Nasza Legenda PRO v0.4 — uruchomienie
+# Nasza Legenda — pilot badawczy v0.4.1
 
-## Najszybciej lokalnie na Windows
+## Co poprawiono
 
-1. Rozpakuj ZIP do osobnego folderu.
-2. Kliknij dwukrotnie `START_LOCAL.bat`.
-3. Przeglądarka powinna otworzyć `http://localhost:8004`.
-4. Jeżeli nie otworzy się sama, wpisz ten adres ręcznie w Chrome.
-5. Czarne okno musi pozostać otwarte podczas testu.
-6. Zatrzymanie serwera: kliknij czarne okno i naciśnij `Ctrl+C`.
+- dodano jasny kontekst przed każdą sceną: co się wydarzyło, dlaczego to ważne i co zrobić teraz;
+- dodano narrację do wszystkich 19 etapów — w v0.4 etapy końcowe nie miały przypisanych tekstów lektora;
+- dodano przycisk „Odtwórz narrację tej sceny”;
+- lektor czyta tekst krótszymi fragmentami i próbuje wznowić głos po zawieszeniu;
+- usunięto odniesienia działające tylko dla rodziny Jabłońskich;
+- dodano rodzaj grupy, opcjonalny wiek uczestników i etykietę testu;
+- każda osoba osobno odpowiada, czy chce Odcinek 2;
+- eksport zapisuje diagnostykę lektora i osobny plik z datą.
 
-## Test na telefonie przez GitHub Pages
+## Aktualizacja aplikacji na GitHub Pages
 
-1. Utwórz publiczne repozytorium na GitHubie, np. `nasza-legenda-pro-test`.
-2. Wgraj do głównego katalogu repozytorium wszystkie pliki z paczki oraz cały folder `icons`.
-3. Wejdź w `Settings → Pages`.
-4. Ustaw `Deploy from a branch`, gałąź `main`, folder `/(root)`.
-5. Otwórz wygenerowany adres w Chrome na telefonie.
-6. Menu Chrome `⋮ → Zainstaluj aplikację` lub `Dodaj do ekranu głównego`.
-7. Otwórz aplikację raz online. Potem sprawdź ją w trybie samolotowym.
+1. Rozpakuj ZIP.
+2. Wejdź do repozytorium `nasza-legenda-pro-v04` na GitHubie.
+3. Wybierz **Add file → Upload files**.
+4. Przeciągnij zawartość folderu v0.4.1, nie sam folder.
+5. Zaznacz zastąpienie plików i kliknij **Commit changes**.
+6. Odczekaj 1–3 minuty.
+7. Otwórz stronę i sprawdź, czy w nagłówku widnieje `v0.4.1`.
+8. Gdy telefon nadal pokazuje v0.4, zamknij aplikację, otwórz stronę w Chrome i odśwież ją dwa razy. Ostatecznie usuń dane witryny dla adresu GitHub Pages.
 
-## Co testujemy
+## Plan pilotażu
 
-- czy historia naprawdę reaguje na przedmioty i słowa,
-- czy zagadka pamięci jest ciekawa,
-- czy Cień buduje napięcie,
-- czy wybór odzyskanej godziny ma sens,
-- czy rytuał dwóch palców robi efekt „wow”,
-- czy po finale Iwona i Szymon chcą Odcinek 2,
-- czy podsumowanie nadaje się do pokazania znajomym.
+Nie publikuj jeszcze szeroko. Wyślij ten sam link do 6–10 małych grup. Każda grupa przechodzi odcinek bez podpowiadania i pobiera plik JSON.
 
-## Ważne ograniczenia prototypu
+Minimalny przekrój:
+- 2 rodziny z dzieckiem 7–11 lat,
+- 2 rodziny lub pary ze starszym dzieckiem / nastolatkiem,
+- 1 para dorosłych,
+- 1 rodzeństwo lub dwoje przyjaciół,
+- opcjonalnie 1 mała grupa współpracowników.
 
-- Lektor korzysta z głosu zainstalowanego w urządzeniu. W ustawieniach startowych można wybrać najlepszy dostępny polski głos albo wyłączyć dźwięk.
-- Eksport filmu to WebM. Docelowy produkt będzie generował MP4.
-- Wszystkie dane pozostają lokalnie w przeglądarce.
-- Nie ma jeszcze kont, płatności ani synchronizacji urządzeń.
+Po każdym teście zbierz JSON oraz jedno zdanie: „W którym momencie przestaliście rozumieć, dlaczego robicie dane zadanie?”.
