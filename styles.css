@@ -40,3 +40,14 @@ footer{border-top:1px solid var(--line);padding:16px 0 28px;color:var(--muted);f
 #narrationStatus.ok{color:var(--ok)}#narrationStatus.error{color:var(--danger)}
 .grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
 @media(max-width:700px){.context-grid,.grid.three{grid-template-columns:1fr}.narration-bar{align-items:flex-start;flex-direction:column;gap:4px}}
+
+/* v0.4.2 — dynamiczne drużyny 2–6 osób */
+.participant-list{display:grid;gap:12px;margin-top:16px}
+.participant-config{padding:15px;border:1px solid var(--line);border-radius:17px;background:rgba(255,255,255,.025)}
+.participant-title{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:11px}
+.participant-title strong{color:var(--gold)}
+.participant-title span{color:var(--cyan);font-size:.82rem;text-align:right}
+.role-card small{display:block;color:var(--cyan);margin-top:9px;font-size:.78rem}
+.signal-word small{display:block;color:var(--cyan);font-size:.7rem;margin-bottom:4px;font-weight:700}
+.participant-feedback>div{padding:12px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.025)}
+@media(max-width:640px){.participant-title{align-items:flex-start;flex-direction:column;gap:3px}.participant-title span{text-align:left}}

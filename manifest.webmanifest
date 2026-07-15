@@ -1,7 +1,7 @@
 {
   "name":"Nasza Legenda PRO",
   "short_name":"Legenda PRO",
-  "description":"Interaktywny odcinek dla rodzin i małych grup, działający offline.",
+  "description":"Interaktywny odcinek dla grup od 2 do 6 osób, działający offline.",
   "start_url":"./",
   "scope":"./",
   "display":"standalone",
