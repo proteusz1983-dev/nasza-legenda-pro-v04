@@ -1,14 +1,14 @@
 {
-  "name":"Nasza Legenda PRO",
-  "short_name":"Legenda PRO",
-  "description":"Interaktywny odcinek dla grup od 2 do 6 osób, działający offline.",
-  "start_url":"./",
-  "scope":"./",
-  "display":"standalone",
-  "background_color":"#070914",
-  "theme_color":"#070914",
-  "lang":"pl",
-  "icons":[
+  "name": "Nasza Legenda 0.5",
+  "short_name": "Nasza Legenda",
+  "description": "Interaktywny serial rodzinny z animacją, lektorem i zadaniami w świecie realnym.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#070912",
+  "theme_color": "#070912",
+  "icons": [
     {"src":"./icons/icon-192.png","sizes":"192x192","type":"image/png"},
     {"src":"./icons/icon-512.png","sizes":"512x512","type":"image/png"},
     {"src":"./icons/icon-512-maskable.png","sizes":"512x512","type":"image/png","purpose":"maskable"}

@@ -3,40 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#070914">
-  <meta name="description" content="Nasza Legenda PRO — interaktywny odcinek dla rodzin i małych grup działający offline.">
+  <meta name="theme-color" content="#070912">
+  <meta name="description" content="Nasza Legenda 0.5 — interaktywny serial rodzinny z animacją, lektorem i zadaniami w prawdziwym świecie.">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icons/icon-192.png">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./styles.css?v=042">
-  <title>Nasza Legenda PRO — Godzina, której brakowało</title>
+  <link rel="stylesheet" href="./styles.css?v=050">
+  <title>Nasza Legenda 0.5 — Godzina, której brakowało</title>
 </head>
 <body>
-  <div id="ambient" aria-hidden="true"></div>
-  <header class="topbar">
-    <button id="homeBtn" class="brand" type="button" aria-label="Strona główna">
-      <img src="./logo.svg" alt="" class="brand-mark">
-      <span><strong>NASZA LEGENDA</strong><small>PROTOTYP BADAWCZY · v0.4.2</small></span>
-    </button>
-    <div class="top-actions">
-      <button id="soundBtn" class="icon-btn" type="button" aria-label="Dźwięk">🔊</button>
-      <button id="installBtn" class="ghost hidden" type="button">Zainstaluj</button>
-    </div>
-  </header>
-
-  <main id="app" class="app-shell" aria-live="polite"></main>
-
-  <footer>
-    <span id="connectionState">Sprawdzanie trybu…</span>
-    <button id="resetBtn" class="text-btn" type="button">Wyczyść test</button>
-  </footer>
-
-  <div id="curtain" class="curtain hidden" aria-hidden="true">
-    <img src="./logo.svg" alt="" class="curtain-logo">
-    <div id="curtainText">Kronika analizuje sygnał…</div>
-    <div class="scan-line"></div>
-  </div>
-
-  <script src="./app.js?v=042"></script>
+  <div id="app"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="./app.js?v=050"></script>
 </body>
 </html>
