@@ -1,66 +1,75 @@
-# Nasza Legenda — etap 0.5
+# Nasza Legenda 0.5.1 — pierwszy filmowy fragment
 
-To pierwszy prototyp formy docelowej: **interaktywny serial 2D**, a nie tekstowa gra.
+To nie jest kolejna wersja tekstowej gry. Jest to pierwszy działający fragment silnika w kierunku **Bandersnatch**:
 
-## Co zawiera
+`scena filmowa → zadanie z czasem → wynik zadania → decyzja → natychmiastowy klip → konsekwencja`
 
-- animowane sceny 2D z postaciami reprezentującymi 2–6 uczestników;
-- narrator i napisy;
-- muzyczne motywy oraz efekty generowane w przeglądarce;
-- role zależne od uczestników;
-- poszukiwanie prawdziwych przedmiotów w otoczeniu;
-- automatyczny wybór Kotwicy;
-- tajne słowa każdej osoby;
-- zadanie pamięciowe;
-- prawdziwe rozgałęzienie fabuły: zaufanie Cieniowi albo zabezpieczenie portalu;
-- wspólny portal dotykowy;
-- osobisty artefakt i cliffhanger;
-- animowany film podsumowujący oraz plakat PNG;
-- ankietę i eksport wyniku JSON;
-- działanie offline po pierwszym otwarciu.
+## Co już działa
 
-## Test lokalny na Windows
+- pełnoekranowe klipy MP4 z dźwiękiem i napisami;
+- konfiguracja grupy od 2 do 6 osób;
+- wszystkie klipy są pobierane do pamięci przed rozpoczęciem;
+- zadanie w prawdziwym pokoju z limitem 30 sekund;
+- wpisanie lub podyktowanie znalezionego przedmiotu;
+- rozpoznanie typu przedmiotu: odbiornik sygnału, zabezpieczenie, światło lub inny;
+- przedmiot wskazuje korzystniejszy wybór;
+- decyzja ma limit 10 sekund;
+- brak decyzji powoduje automatyczny wybór zależny od wyniku zadania;
+- dwie różne ścieżki filmowe;
+- osobna konsekwencja przekroczenia czasu;
+- cliffhanger;
+- zapis przebiegu do JSON;
+- historia jest oddzielona od silnika w pliku `story-graph.json` — fundament pod kolejne odcinki i marketplace.
+
+## Uczciwe ograniczenie tej paczki
+
+Klipy w tej wersji są **filmowym ruchem z wysokiej jakości grafiki koncepcyjnej**, zmontowanym z dźwiękiem i narracją. Pozwalają sprawdzić rytm i technikę przełączania historii, ale nie są jeszcze pełnymi scenami AI z naturalnym ruchem aktorów.
+
+Kolejny krok polega na zastępowaniu plików w folderze:
+
+`episodes/signal-spoza-czasu/scenes/`
+
+prawdziwymi klipami wygenerowanymi w Kling. Silnik, zadanie, timer i rozgałęzienia pozostaną bez zmian.
+
+## Uruchomienie na Windows
 
 1. Rozpakuj ZIP.
-2. Otwórz folder `nasza-legenda-0.5`.
-3. Kliknij dwa razy `START_LOCAL.bat`.
+2. Wejdź do folderu `nasza-legenda-0.5.1-cinematic`.
+3. Kliknij dwukrotnie `START_LOCAL.bat`.
 4. Nie zamykaj czarnego okna.
-5. Aplikacja powinna otworzyć się pod adresem:
+5. Otworzy się adres:
 
-   `http://localhost:8005`
+`http://localhost:8005`
 
-## Aktualizacja obecnego repozytorium GitHub
+Nie otwieraj samego `index.html`, ponieważ przeglądarka może wtedy zablokować pobieranie grafu historii i klipów.
 
-1. Wejdź do repozytorium `nasza-legenda-pro-v04`.
-2. Otwórz `Code` → `Add file` → `Upload files`.
-3. Przeciągnij **zawartość** folderu `nasza-legenda-0.5`, nie sam folder.
-4. Potwierdź zastąpienie plików i kliknij `Commit changes`.
-5. Odczekaj 1–3 minuty.
-6. Otwórz dotychczasowy adres GitHub Pages.
-7. W nagłówku powinno być: `INTERAKTYWNY SERIAL · ETAP 0.5`.
+## Aktualizacja GitHub Pages
 
-Gdy telefon pokazuje starą wersję:
-
-1. otwórz stronę w zwykłym Chrome;
-2. odśwież ją dwa razy;
-3. w razie potrzeby usuń dane witryny albo otwórz link w trybie incognito;
-4. dopiero potem ponownie dodaj aplikację do ekranu głównego.
+1. Otwórz repozytorium `nasza-legenda-pro-v04`.
+2. Wejdź w `Code` → `Add file` → `Upload files`.
+3. Przeciągnij **całą zawartość** rozpakowanego folderu.
+4. Folder `episodes` musi zostać wgrany razem z podfolderami i klipami MP4.
+5. Kliknij `Commit changes`.
+6. Poczekaj 2–5 minut.
+7. Otwórz stronę w trybie incognito, aby ominąć pamięć starej aplikacji.
 
 ## Pierwszy test
 
-Najpierw przejdź cały odcinek sam, żeby wykryć błąd techniczny. Następnie daj go Ewie bez wyjaśnień i sprawdź, czy własnymi słowami potrafi powiedzieć:
+Przejdź fragment sam na laptopie lub telefonie i sprawdź:
 
-- co zniknęło;
-- po co szukali przedmiotów;
-- czym była Kotwica;
-- kim był Cień;
-- dlaczego trzeba było zapisać pierwszy krok.
+1. Czy słychać narrację od pierwszej sceny.
+2. Czy po intro zadanie zaczyna się automatycznie.
+3. Czy licznik ma 30 sekund.
+4. Czy można wpisać albo podyktować przedmiot.
+5. Czy po wybraniu `ODSŁUCHAJ` lub `ZABEZPIECZ` kolejny klip rusza bez ekranu ładowania.
+6. Czy obie decyzje dają inne sceny.
+7. Czy końcowy JSON zapisuje przedmiot, czas i drogę.
 
-Po teście pobierz plik `wynik-nasza-legenda-05-....json`.
+## Struktura odcinka
 
-## Uczciwe ograniczenia etapu 0.5
+- `manifest.json` — dane odcinka;
+- `story-graph.json` — graf scen, zadań i decyzji;
+- `scenes/*.mp4` — klipy filmowe;
+- `scenes-src/*.png` — obrazy zastępcze i plakaty scen.
 
-- postacie są stylizowanymi figurami 2D, a nie jeszcze realistycznymi bohaterami AI;
-- głos nadal korzysta z lektora dostępnego w telefonie lub komputerze;
-- film podsumowujący jest animacją w aplikacji i plakatem PNG, nie pełnym wygenerowanym filmem z naturalnymi postaciami;
-- to działający prototyp kierunku produktu, który ma teraz zostać oceniony przez różne grupy.
+Wersja: **0.5.1**
